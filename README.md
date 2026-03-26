@@ -9,6 +9,11 @@
 ```bash
 python train_p_dual.py
 ```
+
+### Test
+```bash
+python test_p_dual.py
+```
  
 
 
