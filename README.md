@@ -5,7 +5,7 @@
 ### 📦 Pretrained Models
 
 > 📌 Pretrained models are available via Baidu Cloud:  
-> 🔗[pre-train-model]([https://pan.baidu.com/s/1UDS0d7bRWv09I7K_WN2jJg?pw](https://pan.baidu.com/s/1UDS0d7bRWv09I7K_WN2jJg?pwd=cid5))
+> 🔗[model](https://pan.baidu.com/s/1UDS0d7bRWv09I7K_WN2jJg?pwd=cid5)
 
 ## 🚀 Usage
 
