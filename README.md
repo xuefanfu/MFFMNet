@@ -5,7 +5,7 @@
 ### 📦 Pretrained Models
 
 > 📌 Pretrained models are available via Baidu Cloud:  
-> 🔗 [通过网盘分享的文件：model](https://pan.baidu.com/s/1UDS0d7bRWv09I7K_WN2jJg?pwd=cid5 提取码: cid5)
+> 🔗 [model](https://pan.baidu.com/s/1UDS0d7bRWv09I7K_WN2jJg?pwd=cid5 password: cid5)
 > 🔑 Extraction code: xxxx
 
 ## 🚀 Usage
