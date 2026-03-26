@@ -19,6 +19,9 @@ python train_p_dual.py
 python test_p_dual.py
 ```
 
+### 📊 Dataset
+
+The dataset can be downloaded from the official website of ISPRS Potsdam and Vaihingen.
  
 
 
