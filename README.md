@@ -3,7 +3,13 @@
 > 🧠 Official implementation of "Multimodal Fine-Grained Feature Mining for Remote Sensing Image Segmentation".
 
 
-python train.py --config configs/train.yaml
+## 🚀 Usage
+
+### Training
+```bash
+python train_p_dual.py
+
+ 
 
 
 
