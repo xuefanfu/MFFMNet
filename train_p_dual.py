@@ -18,7 +18,7 @@ from torch.autograd import Variable
 from IPython.display import clear_output
 from model.vitcross_seg_modeling import VisionTransformer as ViT_seg
 from model.vitcross_seg_modeling import CONFIGS as CONFIGS_ViT_seg
-from model.unetformer_dual import UNetFormer
+from model.unetformer_dual import MFFMNet
 from dice import DiceLoss
 #d
 
@@ -94,7 +94,6 @@ def test(net, test_ids, all=False, stride=WINDOW_SIZE[0], batch_size=BATCH_SIZE,
 
                 # Do the inference
                 result, resultd, result_final, basefeature, detailfeature, basefeature_d, detailfeature_d = net(image_patches, dsm_patches)
-                # logging.info("resultresultresult",type(result))
                 outs = result_final.data.cpu().numpy()
 
                 # Fill in the results array
@@ -120,6 +119,14 @@ def train(net, epochs, save_path, weights=WEIGHTS):
     mean_losses = np.zeros(100000000)
     print("weights",weights)
     weights = weights.cuda()
+
+    logging.basicConfig(filename=save_path+'/record.txt', level=logging.INFO, format='%(message)s')
+    # 如果你也想在控制台上看到输出，可以添加 StreamHandler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(message)s')
+    console_handler.setFormatter(formatter)
+    logging.getLogger('').addHandler(console_handler)
 
 
     try:
@@ -227,7 +234,7 @@ if __name__ == '__main__':
         os.makedirs(save_path)
     time_start=time.time()
     # train(net, optimizer, 100, scheduler)
-    net = UNetFormer().cuda()
+    net = MFFMNet().cuda()
     train(net, 100, save_path)
     time_end=time.time()
     logging.info('Total Time Cost: ',time_end-time_start)
