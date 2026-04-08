@@ -473,7 +473,7 @@ def _get_clones(module, N, layer_share=False):
 # from PIL import Image
 # import numpy as np
 
-class UNetFormer(nn.Module):
+class MFFMNet(nn.Module):
     def __init__(self,
                  decode_channels=64,
                  dropout=0.1,
@@ -503,13 +503,6 @@ class UNetFormer(nn.Module):
 
         self.backboned.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
 
-        # for param in self.backbone.parameters():
-        #     param.requires_grad = False
-        # for param in self.backboned.parameters():
-        #     param.requires_grad = False
-        # self.training = False
-        # if self.training:
-        #     print("self.training-------------------------------------------------------------------------------")
         self.layers_convbn = nn.ModuleList()
         self.layers_convbn_len = len(backbone_channels)
         for i in range(self.layers_convbn_len):
@@ -530,8 +523,7 @@ class UNetFormer(nn.Module):
         for i in range(self.local_feature_convbnd_len):
             self.local_feature_convbnd.append(ConvBN(backbone_channels[i], img_dim, kernel_size=1, dilation=1, stride=1, norm_layer=nn.BatchNorm2d, bias=False))
 
-        # self.select_feature_layer = BiAttentionBlock(img_dim=256, d_dim=256, embed_dim=1024, num_heads=4)  # 1024
-        # self.select_feature_layer = BiAttentionBlock(img_dim=256, d_dim=256, embed_dim=768, num_heads=8)
+
         self.select_feature_layer = BiAttentionBlock(img_dim=256, d_dim=256, embed_dim=1024, num_heads=8)  # 1024
 
         self.select_layers = _get_clones(self.select_feature_layer, select_num)
@@ -544,10 +536,7 @@ class UNetFormer(nn.Module):
         self.features_proj = nn.Linear(img_dim*2, img_dim)
         self.features_proj_layers = _get_clones(self.features_proj, select_num)
 
-        # self._proj = nn.Linear(3840, 96)
-        # self.feature_merged_proj = nn.Linear(1024, 96)
-        # self.select_feature_merged_proj = nn.Linear(1024, 96)
-   
+
         # # 创建上采样层实例
         self.encode_sw_proj_layers = nn.ModuleList([
             nn.Linear(256, 96),
@@ -556,19 +545,6 @@ class UNetFormer(nn.Module):
             nn.Linear(256, 768)
         ])
 
-        # self.d_select_proj_layers = nn.ModuleList([
-        #     nn.Linear(256, 96),
-        #     nn.Linear(256, 192),
-        #     nn.Linear(256, 384),
-        #     nn.Linear(256, 768)
-        # ])
-
-        # self.d_select_query_proj_layers = nn.ModuleList([
-        #     nn.Linear(4096, 1024),
-        #     nn.Linear(1024, 256),
-        #     nn.Linear(256, 64),
-        #     nn.Linear(256, 768)
-        # ])
 
         self.encoder = SwinTransformer()
 
@@ -577,21 +553,7 @@ class UNetFormer(nn.Module):
         self.decoder = SwinTransformerSys(num_classes=num_classes)
         self.final_decoder = SwinTransformerSysfinal_decoder(num_classes=num_classes)
 
-        # pool_scales = self.generate_arithmetic_sequence(1, 64, 64 // 8)
-        # self.pool_len = len(pool_scales)
-        # self.pool_layers = nn.ModuleList()
-        # self.pool_layers.append(nn.Sequential(
-        #             ConvBNReLU(1024, 128, kernel_size=1),
-        #             nn.AdaptiveAvgPool2d(1)
-        #             ))
-        # for pool_scale in pool_scales[1:]:
-        #     self.pool_layers.append(
-        #         nn.Sequential(
-        #             nn.AdaptiveAvgPool2d(pool_scale),
-        #             ConvBNReLU(1024, 128, kernel_size=1)
-        #             ))
-        
-        # self.shift_dim = ConvBNReLU(2048, 1024, kernel_size=1)
+
 
         self.BaseFeature = BaseFeatureExtraction(dim=dim, num_heads = heads[2])
         self.DetailFeature = DetailFeatureExtraction()
@@ -638,145 +600,67 @@ class UNetFormer(nn.Module):
             if i == 0:
                 querys.append(f.flatten(2).permute(0,2,1))
             else:
-                # print("f------", f.shape)
-                # print("features[i-1]", features[i-1].shape)
-                # print("self.conv_downsample_layers[i](features[i-1])",self.conv_downsample_layers[i-1](features[i-1]).shape)
                 f = torch.cat((f,self.conv_downsample_layers[i-1](features[i-1])), dim=1)
                 f = self.features_proj_layers[i-1](f.flatten(2).permute(0,2,1))
                 querys.append(f)
         return querys
 
-    # def get_img_query(self, features):
-    #     querys = []
-    #     for i, f in enumerate(features):
-    #             querys.append(f.flatten(2).permute(0,2,1))
-    #     return querys
+
 
     def forward(self, x, y):
-        # h, w = x.size()[-2:]
-        res = self.backbone(x)
-        resd = self.backboned(y)
-        # for i, ddd in enumerate(resd):
-        #     print("{}---,{}".format(i, ddd.shape))
+        # MFE: multi-scale feature extractio for RSI and Dsm
+        res = self.backbone(x) # RSI
+        resd = self.backboned(y) # DSM
         
-        # tensor_shapes =  [
-        #     (10, 256, 64, 64),   # 0---
-        #     (10, 512, 32, 32),   # 1---
-        #     (10, 1024, 16, 16),  # 2---
-        #     (10, 2048, 8, 8)     # 3---
-        # ]
-        # res = []
-        # for idx, shape in enumerate(tensor_shapes):
-        #     # torch.randn()：生成符合标准正态分布的随机张量
-        #     rand_tensor = torch.randn(shape).cuda()
-        #     res.append(rand_tensor)
-        
-        # resd = []
-        # for idx, shape in enumerate(tensor_shapes):
-        #     # torch.randn()：生成符合标准正态分布的随机张量
-        #     rand_tensor = torch.randn(shape).cuda()    
-        #     resd.append(rand_tensor)
-
+        # dimension reduction
         x_local_features_embed, x_local_features_same_dim = self.get_local_features_embed(res, self.local_feature_convbn)
         y_local_features_embed, y_local_features_same_dim = self.get_local_features_embed(resd, self.local_feature_convbnd)
-        img_querys = self.get_img_query(x_local_features_same_dim)
-        # for img_querydd in img_querys: 
-        #     print("img_querys",img_querydd.shape)
-
+        
+        # FA-RSI and FA-DSM: feature embedding
         res_feature = [upsample(f, (64, 64)) for f in x_local_features_same_dim]
         res_feature = torch.cat(res_feature, dim=1)
         res_feature = self.res_feature_aggregation(res_feature)
-
         x_local_features_up_sampled = [upsample(f, (32, 32)) for f in x_local_features_same_dim]
         x_local_features_merged = torch.cat(x_local_features_up_sampled, dim=1)
         x_local_features_merged = self.readuce_proj(x_local_features_merged)
         
+ 
         y_local_features_up_sampled = [upsample(f, (32, 32)) for f in y_local_features_same_dim]
         y_local_features_merged = torch.cat(y_local_features_up_sampled, dim=1)
         y_local_features_merged = self.readuce_d_proj(y_local_features_merged)
-        
-        # 频域全局和局部
+
+        # shallow global feature encoding
         x_global_features_merged = self.encoder_global(x_local_features_merged) # (B. 256, 32, 32)
         y_global_features_merged = self.encoder_global_d(y_local_features_merged)
-        basefeature = self.BaseFeature(x_global_features_merged) 
+
+        # CLFM
+        # deep detail encoding 
         detailfeature = self.DetailFeature(x_global_features_merged)
-        basefeature_d = self.BaseFeature_d(y_global_features_merged)
         detailfeature_d = self.DetailFeature_d(y_global_features_merged)
-        slect_basefeature_d = self.select_layers_split[0](basefeature.flatten(2).permute(0,2,1), basefeature_d.flatten(2).permute(0,2,1))[0]
-        # print("slect_basefeature_d",slect_basefeature_d.shape)
-        slect_basefeature_d = slect_basefeature_d.permute(0,2,1)
-        s_b, s_n, s_d = slect_basefeature_d.shape
-        slect_basefeature_d = slect_basefeature_d.view(s_b, s_n, int(s_d**0.5), int(s_d**0.5))
-        # print("slect_basefeature_d",slect_basefeature_d.shape)
+        # local feature mining
         slect_detailfeature_d = self.select_layers_split[1](detailfeature.flatten(2).permute(0,2,1), detailfeature_d.flatten(2).permute(0,2,1))[0]
-        # print("slect_detailfeature_d",slect_detailfeature_d.shape)
         slect_detailfeature_d = slect_detailfeature_d.permute(0,2,1)
         s_b, s_n, s_d = slect_detailfeature_d.shape
         slect_detailfeature_d = slect_detailfeature_d.view(s_b, s_n, int(s_d**0.5), int(s_d**0.5))
-        # print("slect_detailfeature_d",slect_detailfeature_d.shape)
-
-
-        # # 创建一个目录来保存热力图
-        # output_dir = '/opt/data/private/xffproject/our_method/heatmaps'
-        # os.makedirs(output_dir, exist_ok=True)
-
-        # # 遍历每个样本
-        # output_reshaped = slect_basefeature_d
-        # for sample_index in range(output_reshaped.size(0)):  # 10个样本
-        #     sample = output_reshaped[sample_index]
-            
-        #     # 对于每个样本，遍历所有通道
-        #     for channel_index in range(sample.size(0)):  # 256个通道
-        #         # 获取特定通道的数据，并转换为numpy数组
-        #         heatmap_data = sample[channel_index].detach().cpu().numpy()
-                
-        #         # 保存热力图为文件，不进行显示
-        #         filename = os.path.join(output_dir, f'sample_{sample_index + 1}_channel_{channel_index + 1}.png')
-        #         plt.imsave(filename, heatmap_data)
-                
-        # print("所有热力图已保存至", output_dir)
-
-        # for sample_index in range(output_reshaped.size(0)):  # 10个样本
-        #     sample = output_reshaped[sample_index]
-            
-        #     # 对于每个样本，遍历所有通道
-        #     for channel_index in range(sample.size(0)):  # 256个通道
-        #         # 获取特定通道的数据，并转换为numpy数组
-        #         grayscale_data = sample[channel_index].detach().cpu().numpy()
-                
-        #         # 将灰度图数据归一化到0-255范围，并转为8位无符号整数
-        #         grayscale_normalized = ((grayscale_data - grayscale_data.min()) * (255.0 / (grayscale_data.max() - grayscale_data.min()))).astype(np.uint8)
-                
-        #         # 使用PIL.Image将numpy数组转换为图像
-        #         grayscale_image = Image.fromarray(grayscale_normalized, mode='L')  # 'L'模式代表灰度图像
-                
-        #         # 保存灰度图为文件
-        #         filename = os.path.join(output_dir, f'sample_{sample_index + 1}_channel_{channel_index + 1}.png')
-        #         grayscale_image.save(filename)
-
-        # 空间域全局
+        
+        # GFM
+        # deep global encoding 
+        basefeature = self.BaseFeature(x_global_features_merged) 
+        basefeature_d = self.BaseFeature_d(y_global_features_merged)
+        # deep global feature mining
+        slect_basefeature_d = self.select_layers_split[0](basefeature.flatten(2).permute(0,2,1), basefeature_d.flatten(2).permute(0,2,1))[0]
+        slect_basefeature_d = slect_basefeature_d.permute(0,2,1)
+        s_b, s_n, s_d = slect_basefeature_d.shape
+        slect_basefeature_d = slect_basefeature_d.view(s_b, s_n, int(s_d**0.5), int(s_d**0.5))
+        # shallow global feature mining
         slect_global_feature = self.select_layers_split[2](x_global_features_merged.flatten(2).permute(0,2,1), y_global_features_merged.flatten(2).permute(0,2,1))[0] # (B,1024,256)
-        # print("slect_global_feature", slect_global_feature.shape)
         slect_global_feature = slect_global_feature.permute(0,2,1)
         s_b, s_n, s_d = slect_global_feature.shape
         slect_global_feature = slect_global_feature.view(s_b, s_n, int(s_d**0.5), int(s_d**0.5))
         
-        # x_local_features_merged = x_local_features_merged.flatten(2).permute(0, 2, 1)
-        # x_local_features_merged = self.feature_merged_proj(x_local_features_merged)
-
-
-
-        x_new = []
-        for i, features_embed in enumerate(x_local_features_embed):
-            if self.encode_sw_proj_layers[i] is not None:
-                features_embed = self.encode_sw_proj_layers[i](features_embed)
-            x_new.append(features_embed)
-            # d_select torch.Size([10, 4096, 256])
-            # d_select torch.Size([10, 1024, 256])
-            # d_select torch.Size([10, 256, 256])
-            # d_select torch.Size([10, 64, 256])
-        
-        # 空间域局部
+        # Multi-Scale Local Feature Mining 
+        # get multi-scale fusion query 
+        img_querys = self.get_img_query(x_local_features_same_dim)
         select_d_features = []
         select_attens = []
         select_original = []
@@ -795,39 +679,34 @@ class UNetFormer(nn.Module):
         d_select = self.d_select_proj(d_select)
         
 
-        # print("slect_basefeature_d",slect_basefeature_d.shape)
-        # print("slect_detailfeature_d",slect_detailfeature_d.shape)
-        # print("slect_global_feature",slect_global_feature.shape)
-        # print("d_select",d_select.shape)
+        # MMF-SUnet
+        # simple feature fusion (SFF)
         slect_all_feature = [slect_basefeature_d, slect_detailfeature_d, slect_global_feature, d_select]
         slect_all_feature = [upsample(f, (64, 64)) for f in slect_all_feature]
         slect_all_feature = torch.cat(slect_all_feature, dim=1)
         slect_all_feature = self.select_all_feature_proj(slect_all_feature)
-
         high_feature = torch.cat((res_feature, slect_all_feature), dim=1)
         high_feature = self.feature_merged_proj(high_feature).flatten(2).permute(0,2,1)
-        # print("high_feature-------------", high_feature.shape)
-
-        # for j in select_original:
-        #     print("j",j.shape)
         select_d_proj = [self.select_d_proj[i](j) for i, j in enumerate(select_original)]
+
+        # Encoder (contain MMF)
+        x_new = []
+        for i, features_embed in enumerate(x_local_features_embed):
+            if self.encode_sw_proj_layers[i] is not None:
+                features_embed = self.encode_sw_proj_layers[i](features_embed)
+            x_new.append(features_embed)
         encode_result = self.encoder(high_feature, x_new, select_d_proj)        
         
-        # encode_result = self.encoder(x_new, new_select_d_features)
-    
-        # unet structure
+
         result = None
         resultd = None
 
+        # auxiliary decoding branches
         if self.training:
             
             x_downsample = []
             for i in range(len(res)):
-                # order0, ---shapetorch.Size([10, 256, 64, 64])
-                # order1, ---shapetorch.Size([10, 512, 32, 32])
-                # order2, ---shapetorch.Size([10, 1024, 16, 16])
-                # order3, ---shapetorch.Size([10, 2048, 8, 8])
-                # print("order{}, ---shape{}".format(i,res[i].shape))
+
                 x = self.layers_convbn[i](res[i])
                 x = x.flatten(2).permute(0, 2, 1)
                 x_downsample.append(x)
@@ -839,40 +718,9 @@ class UNetFormer(nn.Module):
                 y_downsample_d.append(y) 
             result, resultd = self.decoder(x, x_downsample, y, y_downsample_d)
 
-
-
-        # x_downsample = []
-        # for i in range(len(res)):
-        #     # order0, ---shapetorch.Size([10, 256, 64, 64])
-        #     # order1, ---shapetorch.Size([10, 512, 32, 32])
-        #     # order2, ---shapetorch.Size([10, 1024, 16, 16])
-        #     # order3, ---shapetorch.Size([10, 2048, 8, 8])
-        #     # print("order{}, ---shape{}".format(i,res[i].shape))
-        #     x = self.layers_convbn[i](res[i])
-        #     x = x.flatten(2).permute(0, 2, 1)
-        #     x_downsample.append(x)
-
-        # y_downsample_d = []
-        # for i in range(len(resd)):
-        #     y = self.layers_convbn_d[i](resd[i])
-        #     y = y.flatten(2).permute(0, 2, 1)
-        #     y_downsample_d.append(y) 
-        # result, resultd = self.decoder(x, x_downsample, y, y_downsample_d)
-
-
-
-
-        # encode_result_downsample = encode_result[::-1]
-        # for i in encode_result_downsample:
-        #     print("iiiiiiiiiiii",i.shape)
-        
-        # for i in encode_result:
-        #     print("iiiiiiiiiiii----",i.shape)        
-
+        # final decoder
         x = self.final_decoder(encode_result[-1], encode_result)
         return result, resultd, x, basefeature, detailfeature, basefeature_d, detailfeature_d
-        # return result, resultd, x, basefeature, detailfeature, basefeature_d, detailfeature_d, x_global_features_merged, y_global_features_merged,img_querys[1],img_querys[2],img_querys[3],y_local_features_embed[1],y_local_features_embed[2],y_local_features_embed[3], slect_basefeature_d.flatten(2).permute(0,2,1), basefeature.flatten(2).permute(0,2,1),slect_detailfeature_d.flatten(2).permute(0,2,1), detailfeature.flatten(2).permute(0,2,1), detailfeature_d.flatten(2).permute(0,2,1),select_original,slect_global_feature.flatten(2).permute(0,2,1)
-        # return result, resultd, x, basefeature, detailfeature, basefeature_d, detailfeature_d, x_global_features_merged, y_global_features_merged,slect_detailfeature_d,detailfeature.flatten(2).permute(0,2,1)
 # swsl_resnet18
 if  __name__ == "__main__":
     from tqdm import tqdm
@@ -884,31 +732,5 @@ if  __name__ == "__main__":
     model = model.cuda()
     model.train()
     # model.eval()
-
+    
     x, y = model(tensor_random, tensor_random_d)
-
-# class ConvBN(nn.Sequential):
-#     def __init__(self, in_channels, out_channels, kernel_size=3, dilation=1, stride=1, norm_layer=nn.BatchNorm2d, bias=False):
-#         super(ConvBN, self).__init__(
-#             nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, bias=bias,
-#                       dilation=dilation, stride=stride, padding=1),
-#             norm_layer(out_channels)
-#         )
-
-# res1 torch.Size([8, 256, 64, 64])
-# res2 torch.Size([8, 512, 32, 32])
-# res3 torch.Size([8, 1024, 16, 16])
-# res4 torch.Size([8, 2048, 8, 8])
-
-# 256
-# res1 torch.Size([8, 256, 128, 128])
-# res2 torch.Size([8, 512, 64, 64])
-# res3 torch.Size([8, 1024, 32, 32])
-# res4 torch.Size([8, 2048, 16, 16])
-
-# 224
-# res1 torch.Size([8, 256, 56, 56])
-# res2 torch.Size([8, 512, 28, 28])
-# res3 torch.Size([8, 1024, 14, 14])
-# res4 torch.Size([8, 2048, 7, 7])
-
