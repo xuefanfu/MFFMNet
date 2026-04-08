@@ -18,8 +18,7 @@ from torch.autograd import Variable
 from IPython.display import clear_output
 from model.vitcross_seg_modeling import VisionTransformer as ViT_seg
 from model.vitcross_seg_modeling import CONFIGS as CONFIGS_ViT_seg
-from model.unetformer_dual import UNetFormer
-from dice import DiceLoss
+from model.unetformer_dual import MFFMNet
 from save_img_script import save_image
 #d
 
@@ -45,7 +44,7 @@ nvmlInit()
 handle = nvmlDeviceGetHandleByIndex(int(os.environ["CUDA_VISIBLE_DEVICES"]))
 logging.info("Device :", nvmlDeviceGetName(handle))
 
-net = UNetFormer().cuda()
+net = MFFMNet().cuda()
 params = 0
 for name, param in net.named_parameters():
     params += param.nelement()
@@ -70,15 +69,6 @@ for key, value in params_dict.items():
         # Encoder weights are trained at lr / 2 (we have VGG-16 weights as initialization)
         params += [{'params':[value],'lr': base_lr / 2}]
 
-# optimizer = optim.SGD(net.parameters(), lr=base_lr, momentum=0.9, weight_decay=0.0005)
-# # We define the scheduler
-# scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [25, 35, 45], gamma=0.1)
-# # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [40, 45], gamma=0.1)
-# # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [40, 60, 80], gamma=0.1)
-
-# optimizer = optim.Adadelta(net.parameters(), lr=1, rho=0.95, eps=1e-8)
-
-
 # lr = 1e-4
 lr = 1e-4
 weight_decay = 0
@@ -87,6 +77,10 @@ optimizer = torch.optim.Adam(
 optim_step = 20
 optim_gamma = 0.1
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=optim_step, gamma=optim_gamma)
+
+# save_path = "/{}.jpg"
+# if not os.path.exists(os.path.dirname(save_path)):
+#     os.makedirs(os.path.dirname(save_path),exist_ok=True)
 
 def cc(img1, img2):
     eps = torch.finfo(torch.float32).eps
@@ -100,9 +94,7 @@ def cc(img1, img2):
                                                                       2, dim=-1)) * torch.sqrt(torch.sum(img2**2, dim=-1)))
     cc = torch.clamp(cc, -1., 1.)
     return cc.mean()
-save_path = "/{}.jpg"
-if not os.path.exists(os.path.dirname(save_path)):
-    os.makedirs(os.path.dirname(save_path),exist_ok=True)
+# 
 
 def test(net, test_ids, all=False, stride=32, batch_size=BATCH_SIZE, window_size=WINDOW_SIZE):
     # Use the network on the test set
@@ -157,9 +149,9 @@ def test(net, test_ids, all=False, stride=32, batch_size=BATCH_SIZE, window_size
 
             pred = np.argmax(pred, axis=-1)
             
-            save_img_is = True
-            if save_img_is:
-                save_image(pred,save_path.format(img_name))
+            # save_img_is = True
+            # if save_img_is:
+            #     save_image(pred,save_path.format(img_name))
 
             number_sta = number_sta +1 
 
@@ -174,6 +166,6 @@ def test(net, test_ids, all=False, stride=32, batch_size=BATCH_SIZE, window_size
     else:
         return accuracy
 
-net.load_state_dict(torch.load(""))
+net.load_state_dict(torch.load("/opt/data/private/xff-project2/RS/our_method/new-data-p-seed/MFFMNet-p3/segnet256_epoch22_0.9205860008207768"))
 net.eval()
 acc, all_preds, all_gts = test(net, test_ids, all=True, stride=32)
