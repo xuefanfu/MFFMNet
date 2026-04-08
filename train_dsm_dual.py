@@ -18,7 +18,7 @@ from torch.autograd import Variable
 from IPython.display import clear_output
 from model.vitcross_seg_modeling import VisionTransformer as ViT_seg
 from model.vitcross_seg_modeling import CONFIGS as CONFIGS_ViT_seg
-from model.unetformer_dual import UNetFormer
+from model.unetformer_dual import MFFMNet
 from dice import DiceLoss
 # export HF_ENDPOINT=https://hf-mirror.com
 
@@ -110,6 +110,13 @@ def test(net, test_ids, all=False, stride=WINDOW_SIZE[0], batch_size=BATCH_SIZE,
         return accuracy
 
 def train(net, epochs, save_path, weights=WEIGHTS):
+    logging.basicConfig(filename=save_path+'/record.txt', level=logging.INFO, format='%(message)s')
+    # 如果你也想在控制台上看到输出，可以添加 StreamHandler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(message)s')
+    console_handler.setFormatter(formatter)
+    logging.getLogger('').addHandler(console_handler)
     try:
         from urllib.request import URLopener
     except ImportError:
@@ -123,7 +130,7 @@ def train(net, epochs, save_path, weights=WEIGHTS):
         params += param.nelement()
     logging.info(params)
     # Load the datasets
-
+    
     logging.info("training : {}".format(train_ids))
     logging.info("testing : {}".format(test_ids))
     logging.info("BATCH_SIZE: {}".format(BATCH_SIZE))
@@ -218,8 +225,10 @@ if __name__ == '__main__':
         os.makedirs(save_path)
     time_start=time.time()
     # train(net, optimizer, 100, scheduler)
-    net = UNetFormer().cuda()
+    net = MFFMNet().cuda()
     train(net, 100, save_path)
     time_end=time.time()
     logging.info('Total Time Cost: ',time_end-time_start)
+
+
 
