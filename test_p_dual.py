@@ -166,6 +166,6 @@ def test(net, test_ids, all=False, stride=32, batch_size=BATCH_SIZE, window_size
     else:
         return accuracy
 
-net.load_state_dict(torch.load("/opt/data/private/xff-project2/RS/our_method/new-data-p-seed/MFFMNet-p3/segnet256_epoch22_0.9205860008207768"))
+net.load_state_dict(torch.load(""))
 net.eval()
 acc, all_preds, all_gts = test(net, test_ids, all=True, stride=32)
