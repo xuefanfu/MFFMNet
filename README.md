@@ -1,6 +1,6 @@
 # 📄 Project Title
 
-> 🧠 Official implementation of "Multimodal Fine-Grained Feature Mining for Remote Sensing Image Segmentation".
+> 🧠 Official implementation of "Multimodal Fine-Grained Feature Mining Network for Remote Sensing Image Segmentation".
 
 ### 📦 Pretrained Models
 
